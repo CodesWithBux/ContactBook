@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Contact</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body onload="getContact()">
+    <div class="main-container">
+        <h1>Edit Contact</h1>
+        <div id="avatarImage"></div>
+        <form id="editForm">
+            <label for="firstname">First Name</label>
+            <input type="text" id="firstname" name="firstname" readonly><br/>
+            <label for="lastname">Last Name</label>
+            <input type="text" id="lastname" name="lastname" readonly><br/>
+            <label for="mobile">Mobile</label>
+            <input type="text" id="mobile" name="mobile" readonly><br/>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" readonly><br/>
+            <label for="avatar" id="avatarLabel" hidden>Change profile image</label>
+            <input type="file" id="avatar" name="avatar" hidden><br/>
+
+            <button type="submit" id="submitForm" hidden>Submit</button>
+        </form>
+
+        <div class="button-container">
+            <button id="homeLink" type="button">Home</button>
+            <button id="editContact" type="button">Edit</button>
+            <button id="deleteContact" type="button">Delete</button>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        var id = getId();
+        document.getElementById("homeLink").addEventListener('click', homeLink);
+        document.getElementById("editContact").addEventListener('click', enableEdit);
+        document.getElementById("submitForm").addEventListener('click', submitEditForm);
+        document.getElementById("deleteContact").addEventListener('click', deleteContact);
+
+        console.log("This id is:" + id);
+
+        function getId(){
+            var url = window.location.href;
+            var pos = url.search("=");
+            var id = url.slice(pos + 1);
+            return id;
+        }
+
+        function getContact(){
+            fetch(rootPath + 'controller/get-contacts/?id=' + id)
+            .then(function(response){
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(function(data){
+                let contactData;
+
+                if (Array.isArray(data) && data.length > 0) {
+                    contactData = data[0];
+                } else if (typeof data === 'object' && data !== null) {
+                    contactData = data;
+                } else {
+                    console.error("Unexpected data format from API:", data);
+                    alert("Failed to load contact data due to unexpected format.");
+                    return;
+                }
+
+                document.getElementById("firstname").value = contactData.firstname || '';
+                document.getElementById("lastname").value = contactData.lastname || '';
+                document.getElementById("mobile").value = contactData.mobile || '';
+                document.getElementById("email").value = contactData.email || '';
+
+                if (contactData.avatar) {
+                    document.getElementById("avatarImage").innerHTML = `<img src="${rootPath}controller/uploads/${contactData.avatar}" width="100"/>`;
+                }
+            })
+            .catch(function(error) {
+                console.error("Error fetching contact:", error);
+                alert("Could not load contact details. Please try again.");
+            });
+        }
+
+        function homeLink(){
+            window.open("index.html", "_self");
+        }
+
+        function enableEdit() {
+            document.getElementById("firstname").readOnly = false;
+            document.getElementById("lastname").readOnly = false;
+            document.getElementById("mobile").readOnly = false;
+            document.getElementById("email").readOnly = false;
+
+            document.getElementById("avatar").hidden = false;
+            document.getElementById("avatarLabel").hidden = false;
+
+            document.getElementById("submitForm").hidden = false;
+            document.getElementById("editContact").hidden = true;
+        }
+
+        function submitEditForm(e) {
+            e.preventDefault();
+
+            const form = new FormData(document.querySelector('#editForm'));
+            form.append('apiKey', apiKey);
+            form.append('id', id);
+
+            fetch(rootPath + 'controller/edit-contact/', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json,*.*'
+                },
+                body: form
+            })
+            .then(function(response){
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.statusText);
+                }
+                return response.text();
+            })
+            .then(function(data){
+                if (data === "1") {
+                    alert("Contact updated successfully!");
+                    homeLink();
+                } else {
+                    alert("Error updating contact: " + data);
+                }
+            })
+            .catch(function(error) {
+                console.error("Update contact error:", error);
+                alert("Something went wrong during update. Please try again later.");
+            });
+        }
+
+        function deleteContact(){
+            var confirmDelete = confirm("Delete contact. Are you sure?");
+
+            if (confirmDelete == true){
+                fetch(rootPath + 'controller/delete-contact/?id=' + id )
+                .then(function(response){
+                    return response.text();
+                })
+                .then(function(data){
+                    if (data=="1"){
+                        homeLink();
+                    } else{
+                        alert(data);
+                    }
+                })
+                .catch(function(error) {
+                    console.error("Error deleting contact:", error);
+                    alert("Something went wrong during deletion. Please try again.");
+                });
+            }
+        }
+    </script>
+</body>
+</html>
